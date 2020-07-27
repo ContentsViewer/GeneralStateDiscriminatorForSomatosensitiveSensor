@@ -68,29 +68,3 @@ def reader(port, baudrate, sampling_rate, data_labels, output):
         output.put(FAIL)
     except:
         output.put(FAIL)
-
-
-# class SensorStreamReader():
-#     def __init__(self, port='/dev/ttyS9', baudrate=19200, samples_interval_ms=10):
-#         self.data_queue = queue.Queue()
-#         self.ser = serial.Serial(port, baudrate, timeout=None)
-#         self.is_running = True
-#         self.reader_thread = threading.Thread(target=self.reader)
-#         self.reader_thread.daemon = True
-#         self.reader_thread.start()
-
-#     def reader(self):
-#         self.ser.reset_input_buffer()
-
-#         while self.is_running:
-#             for line in self.ser:
-#                 segments = line.split()
-#                 if len(segments) == 3:
-#                     self.data_queue.put(segments)
-#                     # timestamp, pulse_width, flow_amount = segments
-#                     # print(segments)
-
-#     def __del__(self):
-#         self.is_running = False
-#         self.reader_thread.join()
-#         self.ser.close()

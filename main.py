@@ -27,29 +27,9 @@ from lib.stdlib.stopwatch import Stopwatch, stopwatch, stopwatch_scope
 from lib.stdlib.fixedloop import FixedLoop
 from lib.stdlib.collections import dotdict
 
-# def task_A():
-#     while True:
-#         print('A: {0}'.format(time.time()))
-#         time.sleep( 0.0001 )
-
-# def task_B():
-#     while True:
-#         print('B: {0}'.format(time.time()))
-#         time.sleep( 0.0001 )
-
 
 def main(args):
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
-
-    # thread_A = threading.Thread(target=task_A, daemon=True)
-    # thread_B = threading.Thread(target=task_B, daemon=True)
-    # thread_A.start()
-    # thread_B.start()
-    # while True:
-    #     print('Main: {0}'.format(time.time()))
-    #     time.sleep( 0.0001 )
-
-    # exit()
 
     config = importlib.import_module(args.config).Config
 
@@ -70,42 +50,6 @@ def main(args):
     if sensor_output.get() is sensor.FAIL:
         raise RuntimeError('Serial Process Fail.')
 
-    # # ser = serial.Serial('/dev/ttyS9', 19200,timeout=1)
-    # ser = serial.Serial()
-    # ser.baudrate = config.baudrate
-    # ser.port = config.port
-    # # ser.timeout = 1
-    # # ser.parity = serial.PARITY_NONE
-    # # ser.stopbits = serial.STOPBITS_ONE
-    # # ser.bytesize = serial.EIGHTBITS
-    # # ser.write_timeout = 0.5
-    # # ser.xonxoff = False
-    # # ser.rtscts = False
-
-    # ser.parity = serial.PARITY_ODD
-    # ser.open()
-    # ser.close()
-    # ser.parity = serial.PARITY_NONE
-    # ser.open()
-    # print('Serial warming up...')
-    # time.sleep(2)
-
-    # # while True:
-    # #     sensor.clear_sensor_input(ser)
-    # #     line = ser.readline()
-    # #     print(line)
-    # data = sensor.read_latest_data(ser, config.sensor_data_labels)
-
-    # if data is None:
-    #     raise RuntimeError('First Serial Data is None')
-
-    # End Setup Serial ---
-
-    # sensor_offset_time = data.timestamp / 1000 - app_timer.elapsed
-    # print('data: {0}'.format(data))
-    # print('app_timer.elapsed: {0}'.format(app_timer.elapsed))
-    # print('sensor_offset_time: {0}'.format(sensor_offset_time))
-
     # --- Setup GUI ---
     print('GUI is launching...')
     pygame.init()
@@ -114,7 +58,6 @@ def main(args):
     pygame.display.set_caption("STEM")
     pygame.display.set_icon(GUI.make_text('|†|', font=pygame.font.Font(
         "fonts/Ubuntu Mono derivative Powerline Bold.ttf", 64), color=GUI.color.black))
-    # pygame.display.set_icon(GUI.make_text('|+|', font=GUI.font.large, color=GUI.color.black))
     # End Setup GUI ---
 
     # --- Setup Model ---
@@ -221,11 +164,11 @@ def main(args):
                 estimator.run(inputs=input_list,
                               supervised_state_label=supervised_state_label)
 
-        # if fixed_loop.last_delay_time >= 0:
-        #     for label in config.sensor_feature_labels:
-        #         input_queue.append(sensor_data[label])
-        # else:
-        #     input_queue.clear()
+        count = 0
+        for state_id in range(len(precedents_dict) - 1):
+            count += len(precedents_dict[state_id])
+        if count > len(config.possible_states):
+            precedents_dict[-1].clear()
 
         if not estimator.results.empty():
             estimated = estimator.results.get()
@@ -238,31 +181,20 @@ def main(args):
                 if id2label[estimated.estimated_state] is None:
                     id2label[estimated.estimated_state] = estimated.supervised_state_label
                     label2id[estimated.supervised_state_label] = estimated.estimated_state
-                # else:
-                #     reserved_label = id2label[estimated.estimated_state]
-                #     reserved_id = label2id[reserved_label]
-                #     id2label[estimated.estimated_state] = estimated.supervised_state_label
-                #     label2id[estimated.supervised_state_label] = estimated.estimated_state
-                #     id2label[reserved_id] = reserved_label
-                #     label2id[reserved_label] = reserved_id
-                #     print('SWAP')
+
                 if label2id.get(estimated.supervised_state_label) is None:
                     alignedid = 0
                     for i, label in enumerate(id2label):
                         if label is None:
                             alignedid = i
-                    
+
                     id2label[alignedid] = estimated.supervised_state_label
                     label2id[estimated.supervised_state_label] = alignedid
 
                 estimated.supervised_state = label2id[estimated.supervised_state_label]
 
-            estimated_state = estimated.get('supervised_state')
-            if estimated_state is None:
-                estimated_state = estimated.get('estimated_state')
-
-            precedents_dict[estimated_state].append(estimated)
-            # print(result)
+            major_state = facenet.get_major_state(estimated)
+            precedents_dict[major_state].append(estimated)
 
         if not trainor.results.empty():
             pass
@@ -284,15 +216,13 @@ def main(args):
             current_state = facenet.get_major_state(estimated)
 
             screen.blit(GUI.make_text(
-                '{0} {1}'.format(estimated_state, '?' if id2label[estimated_state] is None else id2label[estimated_state]), GUI.font.large), (80, 0))
+                '{0} {1}'.format(current_state, '?' if id2label[current_state] is None else id2label[current_state]), GUI.font.large), (80, 0))
         else:
             screen.blit(GUI.make_text(
                 '?', GUI.font.large), (80, 0))
 
         GUI.begin_multilines((400, 30))
-        GUI.draw_multiline_text(screen,
-                                "Sensor:"
-                                )
+        GUI.draw_multiline_text(screen, "Sensor:")
         if sensor_data is sensor.DROP:
             GUI.draw_multiline_text(screen, '  DROP!')
         else:
@@ -353,6 +283,24 @@ def main(args):
         else:
             screen.blit(GUI.make_text('Sensor: Sync',
                                       color=GUI.color.green), (240, 463))
+
+        pygame.draw.rect(screen, (0x11, 0x11, 0x11),
+                         pygame.Rect(10, 30, 380, 380))
+        meta, plots = facenet.make_visualized_graph_plots(precedents_dict)
+        if meta is not None:
+            scale = meta.max - meta.min
+            a = 190 / scale.max()
+            root = np.array([10 + 190, 30 + 190])
+            for plot in plots:
+                position = root + plot.position * a
+                position = position.astype(np.int64)
+                if plot.supervised_state is not None:
+                    pygame.draw.circle(
+                        screen, config.id2color[plot.supervised_state], position, 6)
+
+                if plot.estimated_state is not None:
+                    pygame.draw.circle(
+                        screen, config.id2color[plot.estimated_state], position, 4)
 
         profile['gui_update'] = app_timer.lap()
         # End Update GUI Elements ---

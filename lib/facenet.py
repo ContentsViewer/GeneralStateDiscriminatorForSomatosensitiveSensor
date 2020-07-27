@@ -29,9 +29,9 @@ def triplet_loss(alpha=0.2):
         #           >>>
         #           https://gist.github.com/JustinhoCHN/a243056d87f4c2728de9e7ea4923de01
         #
-        anchor = y_pred[:,0,:]
-        positive = y_true[:,0,:]
-        negative = y_true[:,1,:]
+        anchor = y_pred[:, 0, :]
+        positive = y_true[:, 0, :]
+        negative = y_true[:, 1, :]
 
         pos_dist = tf.math.reduce_sum(tf.math.square(
             tf.math.subtract(anchor, positive)), 1)
@@ -65,7 +65,6 @@ def select_triplets(anchor_embedding, positive_embeddings, negative_embeddings, 
     return triplets
 
 
-
 class Estimator():
     def __init__(self, model=None, precedents_dict=None):
         self.is_running = False
@@ -85,10 +84,8 @@ class Estimator():
         self.worker_thread.start()
 
     def worker(self):
-        # print(self.inputs)
         [embedding], _ = self.model(self.inputs)
 
-        # print(embedding)
         result = dotdict({
             'inputs': None,
             'embedding': None,
@@ -101,7 +98,7 @@ class Estimator():
         result.embedding = embedding
         result.estimated_state = n_states  # not categorized state
         result.supervised_state_label = self.supervised_state_label
-        
+
         embeddings = []
         for precedents in self.precedents_dict:
             embeddings.extend(
@@ -112,7 +109,7 @@ class Estimator():
             kmeans = KMeans(
                 n_clusters=n_states
             )
-            
+
             result.clustered = kmeans.fit_predict(embeddings)
 
             id_remap = [i for i in range(len(kmeans.cluster_centers_))]
@@ -123,7 +120,8 @@ class Estimator():
 
                 for ifrom, ito in pairs:
                     id_remap[ifrom] = ito
-                    result.cluster_centers[ito] = kmeans.cluster_centers_[ifrom]
+                    result.cluster_centers[ito] = kmeans.cluster_centers_[
+                        ifrom]
             else:
                 result.cluster_centers = kmeans.cluster_centers_
 
@@ -133,13 +131,10 @@ class Estimator():
 
             # print(result.clustered[-1])
             # print(kmeans.cluster_centers_[0], kmeans.cluster_centers_[1])
-        # pca = PCA(n_components=2)
-        # pca.fit(embedding)
-        # reduced = pca.fit_transform(embedding)
-        # print(reduced)
 
         self.results.put(result)
         self.is_running = False
+
 
 class Trainor():
     def __init__(self, precedents_dict=None):
@@ -159,23 +154,24 @@ class Trainor():
     def worker(self):
         positive_embeddings = []
         negative_embeddings = []
-        anchor_state = self.anchor.get('supervised_state')
-        if anchor_state is None:
-            anchor_state = self.anchor.get('estimated_state')
+        anchor_state = get_major_state(self.anchor)
 
         for state, precedents in enumerate(self.precedents_dict):
             if state == len(self.precedents_dict) - 1:
                 break
             if state == anchor_state:
-                positive_embeddings.extend([precedent.embedding for precedent in precedents])
+                positive_embeddings.extend(
+                    [precedent.embedding for precedent in precedents])
             else:
-                negative_embeddings.extend([precedent.embedding for precedent in precedents])
+                negative_embeddings.extend(
+                    [precedent.embedding for precedent in precedents])
 
         if len(positive_embeddings) <= 0 or len(negative_embeddings) <= 0:
             self.is_running = False
             return
 
-        triplets = select_triplets(self.anchor.embedding, positive_embeddings, negative_embeddings)
+        triplets = select_triplets(
+            self.anchor.embedding, positive_embeddings, negative_embeddings)
         if len(triplets) <= 0:
             self.is_running = False
             return
@@ -189,6 +185,7 @@ class Trainor():
 
         self.model.fit(inputs, targets, batch_size=1)
         self.is_running = False
+
 
 def nearest(a, b):
     na, nb = len(a), len(b)
@@ -211,10 +208,47 @@ def nearest(a, b):
 
     return pairs
 
-def get_major_state(estimated):
-    state = estimated.get('supervised_state')
+
+def get_major_state(precedent):
+    state = precedent.get('supervised_state')
     if state is None:
-        state = estimated.get('estimated_state')
-    
+        state = precedent.get('estimated_state')
+
     return state
 
+
+def make_visualized_graph_plots(precedents_dict):
+    plots = []
+    meta = dotdict()
+    embeddings = []
+
+    for precedents in precedents_dict:
+        embeddings.extend([precedent.embedding for precedent in precedents])
+
+    if len(embeddings) < 2:
+        return None, None
+
+    pca = PCA(n_components=2)
+    reduced = pca.fit_transform(embeddings)
+    meta.min, meta.max = [None, None], [None, None]
+
+    idx = 0
+    for precedents in precedents_dict:
+        for precedent in precedents:
+            plot = dotdict()
+            plot.position = np.array(reduced[idx])
+            if meta.min[0] is None or meta.min[0] > reduced[idx][0]:
+                meta.min[0] = reduced[idx][0]
+            if meta.min[1] is None or meta.min[1] > reduced[idx][1]:
+                meta.min[1] = reduced[idx][1]
+            if meta.max[0] is None or meta.max[0] < reduced[idx][0]:
+                meta.max[0] = reduced[idx][0]
+            if meta.max[1] is None or meta.max[1] < reduced[idx][1]:
+                meta.max[1] = reduced[idx][1]
+            plot.estimated_state = precedent.get('estimated_state')
+            plot.supervised_state = precedent.get('supervised_state')
+            plots.append(plot)
+            idx += 1
+    meta.min = np.array(meta.min)
+    meta.max = np.array(meta.max)
+    return meta, plots
