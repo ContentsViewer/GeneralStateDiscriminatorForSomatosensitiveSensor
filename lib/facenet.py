@@ -209,15 +209,32 @@ def nearest(a, b):
     return pairs
 
 
-def get_major_state(precedent):
-    state = precedent.get('supervised_state')
+def get_major_state(segment):
+    state = segment.get('supervised_state')
     if state is None:
-        state = precedent.get('estimated_state')
+        state = segment.get('estimated_state')
 
     return state
 
 
-def make_visualized_graph_plots(precedents_dict):
+def make_visualized_graph_plots(precedents_dict, current_segment):
+    def make_plot(segment, reduced, min_pos, max_pos):
+        plot = dotdict()
+        plot.position = np.array(reduced)
+        if min_pos[0] is None or min_pos[0] > reduced[0]:
+            min_pos[0] = reduced[0]
+        if min_pos[1] is None or min_pos[1] > reduced[1]:
+            min_pos[1] = reduced[1]
+        if max_pos[0] is None or max_pos[0] < reduced[0]:
+            max_pos[0] = reduced[0]
+        if max_pos[1] is None or max_pos[1] < reduced[1]:
+            max_pos[1] = reduced[1]
+        
+        plot.estimated_state = segment.get('estimated_state')
+        plot.supervised_state = segment.get('supervised_state')
+
+        return plot, min_pos, max_pos
+
     plots = []
     meta = dotdict()
     embeddings = []
@@ -228,6 +245,9 @@ def make_visualized_graph_plots(precedents_dict):
     if len(embeddings) < 2:
         return None, None
 
+    if current_segment is not None:
+        embeddings.append(current_segment.embedding)
+        
     pca = PCA(n_components=2)
     reduced = pca.fit_transform(embeddings)
     meta.min, meta.max = [None, None], [None, None]
@@ -235,20 +255,14 @@ def make_visualized_graph_plots(precedents_dict):
     idx = 0
     for precedents in precedents_dict:
         for precedent in precedents:
-            plot = dotdict()
-            plot.position = np.array(reduced[idx])
-            if meta.min[0] is None or meta.min[0] > reduced[idx][0]:
-                meta.min[0] = reduced[idx][0]
-            if meta.min[1] is None or meta.min[1] > reduced[idx][1]:
-                meta.min[1] = reduced[idx][1]
-            if meta.max[0] is None or meta.max[0] < reduced[idx][0]:
-                meta.max[0] = reduced[idx][0]
-            if meta.max[1] is None or meta.max[1] < reduced[idx][1]:
-                meta.max[1] = reduced[idx][1]
-            plot.estimated_state = precedent.get('estimated_state')
-            plot.supervised_state = precedent.get('supervised_state')
+            plot, meta.min, meta.max = make_plot(precedent, reduced[idx], meta.min, meta.max)
             plots.append(plot)
             idx += 1
+
+    if current_segment is not None:
+        plot, meta.min, meta.max = make_plot(current_segment, reduced[idx], meta.min, meta.max)
+        plots.append(plot)
+
     meta.min = np.array(meta.min)
     meta.max = np.array(meta.max)
     return meta, plots

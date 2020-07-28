@@ -111,6 +111,7 @@ def main(args):
         precedents_dict=precedents_dict
     )
 
+    prev_saving_precedent_time = app_timer.elapsed
     fixed_loop = FixedLoop(1 / config.frame_rate)
     fixed_loop.reset()
     fixed_loop.sync()
@@ -173,28 +174,32 @@ def main(args):
         if not estimator.results.empty():
             estimated = estimator.results.get()
 
-            if not trainor.is_running:
-                submitted_trainor = True
-                trainor.run(model=model, anchor=estimated)
-
             if (estimated.supervised_state_label is not None) and (estimated.estimated_state < len(config.possible_states)):
                 if id2label[estimated.estimated_state] is None:
                     id2label[estimated.estimated_state] = estimated.supervised_state_label
                     label2id[estimated.supervised_state_label] = estimated.estimated_state
 
                 if label2id.get(estimated.supervised_state_label) is None:
-                    alignedid = 0
+                    aligned_id = 0
                     for i, label in enumerate(id2label):
                         if label is None:
-                            alignedid = i
+                            aligned_id = i
+                            break
 
-                    id2label[alignedid] = estimated.supervised_state_label
-                    label2id[estimated.supervised_state_label] = alignedid
+                    id2label[aligned_id] = estimated.supervised_state_label
+                    label2id[estimated.supervised_state_label] = aligned_id
 
                 estimated.supervised_state = label2id[estimated.supervised_state_label]
-
-            major_state = facenet.get_major_state(estimated)
-            precedents_dict[major_state].append(estimated)
+                # print(estimated.supervised_state)
+            if (estimated.supervised_state_label is not None) or app_timer.elapsed > prev_saving_precedent_time + config.precedent_interval:
+                if not trainor.is_running:
+                    submitted_trainor = True
+                    trainor.run(model=model, anchor=estimated)
+                
+                major_state = facenet.get_major_state(estimated)
+                
+                precedents_dict[major_state].append(estimated)
+                prev_saving_precedent_time = app_timer.elapsed
 
         if not trainor.results.empty():
             pass
@@ -286,7 +291,7 @@ def main(args):
 
         pygame.draw.rect(screen, (0x11, 0x11, 0x11),
                          pygame.Rect(10, 30, 380, 380))
-        meta, plots = facenet.make_visualized_graph_plots(precedents_dict)
+        meta, plots = facenet.make_visualized_graph_plots(precedents_dict, estimated)
         if meta is not None:
             scale = meta.max - meta.min
             a = 190 / scale.max()

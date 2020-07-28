@@ -27,6 +27,9 @@ class Config():
 
     precedents_maxlen = 100
 
+    # [s]
+    precedent_interval = 10
+
     sampling_rate = 30
     frame_rate = 30
 
