@@ -299,6 +299,7 @@ def main(args):
             for plot in plots:
                 position = root + plot.position * a
                 position = position.astype(np.int64)
+            
                 if plot.supervised_state is not None:
                     pygame.draw.circle(
                         screen, config.id2color[plot.supervised_state], position, 6)

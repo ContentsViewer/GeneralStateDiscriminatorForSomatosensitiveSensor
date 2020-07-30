@@ -23,14 +23,14 @@ class Config():
     # if checkpoint is already exists, load the model parameter before application start.
     checkpoint = './checkpoints/default/checkpoint'
 
-    model_sensor_data_inputs = 128
+    model_sensor_data_inputs = 64
 
     precedents_maxlen = 100
 
     # [s]
     precedent_interval = 10
 
-    sampling_rate = 30
+    sampling_rate = 50
     frame_rate = 30
 
     possible_states = {
