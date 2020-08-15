@@ -6,7 +6,7 @@ class Config():
 
     baudrate = 19200
 
-    port = '/dev/ttyS9'
+    port = '/dev/ttyACM0'
 
     sensor_data_labels = [
         'timestamp',
@@ -18,6 +18,8 @@ class Config():
         'pulse_width',
         'flow_amount'
     ]
+
+    model_path = 'lib.models.nn'
 
     # path to checkpoint for saving the model parameter.
     # if checkpoint is already exists, load the model parameter before application start.

@@ -17,7 +17,6 @@ from multiprocessing import Process, Queue
 import tensorflow as tf
 from tensorflow.keras import Model
 
-from lib.models import NN
 from lib.layers import Duplicate
 import lib.sensor as sensor
 import lib.facenet as facenet
@@ -62,7 +61,7 @@ def main(args):
 
     # --- Setup Model ---
     print('Model Setup...')
-    base_model = NN()
+    base_model = importlib.import_module(config.model_path).Model()
     inputs = tf.keras.Input(
         shape=(config.model_sensor_data_inputs *
                len(config.sensor_feature_labels),),
