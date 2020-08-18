@@ -19,7 +19,7 @@ class Config():
         'flow_amount'
     ]
 
-    model_path = 'lib.models.nn'
+    model_path = 'lib.models.lstm'
 
     # path to checkpoint for saving the model parameter.
     # if checkpoint is already exists, load the model parameter before application start.
@@ -32,15 +32,15 @@ class Config():
     # [s]
     precedent_interval = 10
 
-    sampling_rate = 50
+    sampling_rate = 32
     frame_rate = 30
 
     possible_states = {
         'not_touched': {
-            'key': K_m
+            'key': K_n
         },
         'toched': {
-            'key': K_n
+            'key': K_m
         }
     }
 

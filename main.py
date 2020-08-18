@@ -63,7 +63,7 @@ def main(args):
     print('Model Setup...')
     base_model = importlib.import_module(config.model_path).Model()
     inputs = tf.keras.Input(
-        shape=(config.model_sensor_data_inputs *
+        shape=(config.model_sensor_data_inputs,
                len(config.sensor_feature_labels),),
         batch_size=None
     )
@@ -90,8 +90,7 @@ def main(args):
         'screen_update': 0
     }
     input_queue = deque(
-        maxlen=config.model_sensor_data_inputs *
-        len(config.sensor_feature_labels)
+        maxlen=config.model_sensor_data_inputs
     )
 
     # 0 -> 'label A', 1 -> 'label B', ...
@@ -152,8 +151,8 @@ def main(args):
             elif sensor_data is sensor.FAIL:
                 raise RuntimeError('Serial Process Fail.')
             else:
-                for label in config.sensor_feature_labels:
-                    input_queue.append(sensor_data[label])
+                features = [sensor_data[label] for label in config.sensor_feature_labels]
+                input_queue.append(features)
 
         profile['sensor_read'] = app_timer.lap()
 
@@ -312,7 +311,8 @@ def main(args):
 
         pygame.display.update()
         profile['screen_update'] = app_timer.lap()
-        fixed_loop.sync()
+        if not fixed_loop.sync():
+            fixed_loop.reset()
 
     pygame.quit()
     exit()

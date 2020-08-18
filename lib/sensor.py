@@ -62,7 +62,8 @@ def reader(port, baudrate, sampling_rate, data_labels, output):
             else:
                 output.put(DROP)
 
-            fixed_loop.sync()
+            if not fixed_loop.sync():
+                fixed_loop.reset()
 
     except serial.SerialException:
         output.put(FAIL)
