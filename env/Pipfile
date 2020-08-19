@@ -9,11 +9,11 @@ verify_ssl = true
 tensorflow = "*"
 pyserial = "*"
 matplotlib = "*"
-pygame = "*"
 tqdm = "*"
 autopep8 = "*"
 sklearn = "*"
 pandas = "*"
+pygame = "*"
 
 [requires]
 python_version = "3.6"

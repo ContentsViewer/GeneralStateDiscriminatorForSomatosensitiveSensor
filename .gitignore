@@ -3,3 +3,4 @@ ref
 __pycache__
 /work.code-workspace
 /lib/stdlib
+/env/Pipfile.lock
